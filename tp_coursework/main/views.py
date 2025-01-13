@@ -1,11 +1,11 @@
 import os
 from django.core.serializers.json import DjangoJSONEncoder
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render
 from django.http import HttpResponse
 from django.db.models import Count, F
 import json
 import csv
-from django.shortcuts import redirect, get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Event, Participant
@@ -124,6 +124,20 @@ class GroupDistributionCalculator(StatisticCalculator):
     def calculate(self, participants):
         return list(participants.values('group').annotate(count=Count('group')))
 
+class MinAgeCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        if not participants:
+            return 0
+        min_age = min(2025 - int(participant.birth_date.year) for participant in participants)
+        return min_age
+
+class MaxAgeCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        if not participants:
+            return 0
+        max_age = max(2025 - int(participant.birth_date.year) for participant in participants)
+        return max_age
+
 # Фабрика калькуляторов
 def create_statistic_calculator(statistic_type):
     calculators = {
@@ -134,6 +148,8 @@ def create_statistic_calculator(statistic_type):
         'faculty_distribution': FacultyDistributionCalculator,
         'course_distribution': CourseDistributionCalculator,
         'group_distribution': GroupDistributionCalculator,
+        'min_age': MinAgeCalculator,
+        'max_age': MaxAgeCalculator,
     }
     calculator_class = calculators.get(statistic_type)
     if calculator_class:
@@ -151,7 +167,7 @@ def event_statistics(request, event_id):
 
     if not statistics_to_calculate:
         statistics_to_calculate = [
-            'total_participants', 'average_age', 'gender_distribution',
+            'total_participants', 'average_age', 'min_age', 'max_age', 'gender_distribution',
             'university_distribution', 'faculty_distribution',
             'course_distribution', 'group_distribution'
         ]

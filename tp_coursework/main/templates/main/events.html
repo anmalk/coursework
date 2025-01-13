@@ -219,6 +219,8 @@ statisticsModal.addEventListener('show.bs.modal', function (event) {
                 statisticsContent.innerHTML = `
                     <p><strong>Общее количество участников:</strong> ${data.total_participants}</p>
                     <p><strong>Средний возраст участников:</strong> ${data.average_age.toFixed(1)} лет</p>
+                    <p><strong>Минимальный возраст участников:</strong> ${data.min_age} лет</p>
+                    <p><strong>Максимальный возраст участников:</strong> ${data.max_age} лет</p>
                 `;
 
                 // Gender Distribution
