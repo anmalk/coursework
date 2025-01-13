@@ -1,12 +1,7 @@
 import os
-
 from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
 from django.http import HttpResponse
-from .models import Event, Participant
-from django.shortcuts import redirect
-from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, F
 import json
 import csv
@@ -85,57 +80,93 @@ def get_participants(request, event_id):
         return JsonResponse({'status': 'success', 'participants': participant_data})
     except Participant.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Нет участников'})
-def index(request):
-    return render(request, 'main/index.html')
 
-def about(request):
-    return render(request, 'main/about.html')
 def events_list(request):
     events = Event.objects.all()
 
     return render(request, 'main/events.html', {'events': events})
 
+# Интерфейс калькулятора статистики
+class StatisticCalculator(ABC):
+    @abstractmethod
+    def calculate(self, participants):
+        pass
 
-def event_statistics(request, event_id):
-    # Get the event by ID or return a 404 if it doesn't exist
-    event = get_object_or_404(Event, id=event_id)
+# Конкретные калькуляторы
+class TotalParticipantsCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return participants.count()
 
-    # Total number of participants
-    total_participants = Participant.objects.filter(event=event).count()
+class AverageAgeCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        if not participants:  # Проверка на пустой QuerySet
+            return 0
+        total_age = sum((2025 - int(participant.birth_date.year)) for participant in participants)
+        return total_age / len(participants)
 
-    # Gender distribution
-    gender_distribution = Participant.objects.filter(event=event).values('gender').annotate(count=Count('gender'))
+class GenderDistributionCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return list(participants.values('gender').annotate(count=Count('gender')))
 
-    # Average age of participants
-    participants = Participant.objects.filter(event=event)
-    total_age = sum((2025 - int(participant.birth_date.year)) for participant in participants)
-    average_age = total_age / len(participants) if participants else 0
+class UniversityDistributionCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return list(participants.values('university').annotate(count=Count('university')))
 
-    # Distribution by university
-    university_distribution = Participant.objects.filter(event=event).values('university').annotate(count=Count('university'))
+class FacultyDistributionCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return list(participants.values('faculty').annotate(count=Count('faculty')))
 
-    # Distribution by faculty
-    faculty_distribution = Participant.objects.filter(event=event).values('faculty').annotate(count=Count('faculty'))
+class CourseDistributionCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return list(participants.values('course').annotate(count=Count('course')))
 
-    # Distribution by course
-    course_distribution = Participant.objects.filter(event=event).values('course').annotate(count=Count('course'))
+class GroupDistributionCalculator(StatisticCalculator):
+    def calculate(self, participants):
+        return list(participants.values('group').annotate(count=Count('group')))
 
-    # Distribution by group
-    group_distribution = Participant.objects.filter(event=event).values('group').annotate(count=Count('group'))
-
-    # Prepare the statistics as a dictionary
-    statistics = {
-        'total_participants': total_participants,
-        'gender_distribution': list(gender_distribution),
-        'average_age': average_age,
-        'university_distribution': list(university_distribution),
-        'faculty_distribution': list(faculty_distribution),
-        'course_distribution': list(course_distribution),
-        'group_distribution': list(group_distribution)
+# Фабрика калькуляторов
+def create_statistic_calculator(statistic_type):
+    calculators = {
+        'total_participants': TotalParticipantsCalculator,
+        'average_age': AverageAgeCalculator,
+        'gender_distribution': GenderDistributionCalculator,
+        'university_distribution': UniversityDistributionCalculator,
+        'faculty_distribution': FacultyDistributionCalculator,
+        'course_distribution': CourseDistributionCalculator,
+        'group_distribution': GroupDistributionCalculator,
     }
+    calculator_class = calculators.get(statistic_type)
+    if calculator_class:
+        return calculator_class()
+    else:
+        raise ValueError(f"Неизвестный тип статистики: {statistic_type}")
 
-    # Return the statistics in JSON format
+# Представление Django
+def event_statistics(request, event_id):
+    event = get_object_or_404(Event, id=event_id)
+    participants = Participant.objects.filter(event=event)
+    statistics_to_calculate = request.GET.getlist('stats')
+
+    statistics = {}
+
+    if not statistics_to_calculate:
+        statistics_to_calculate = [
+            'total_participants', 'average_age', 'gender_distribution',
+            'university_distribution', 'faculty_distribution',
+            'course_distribution', 'group_distribution'
+        ]
+
+    for stat_type in statistics_to_calculate:
+        try:
+            calculator = create_statistic_calculator(stat_type)
+            statistics[stat_type] = calculator.calculate(participants)
+        except ValueError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        except ZeroDivisionError: # Обработка деления на ноль
+            statistics[stat_type] = 0 # или другое значение по умолчанию
+
     return JsonResponse(statistics)
+
 
 # Стратегия форматирования даты
 class DateFormatStrategy(ABC):
