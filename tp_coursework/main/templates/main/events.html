@@ -36,6 +36,8 @@
                             data-event-id="{{ event.id }}">
                             Показать участников
                         </button>
+                        <a href="{% url 'export_participants_json' event.id %}" class="btn btn-warning mt-2" download>JSON</a>
+                        <a href="{% url 'export_participants_csv' event.id %}" class="btn btn-success mt-2" download>CSV</a>
                         <!-- Кнопка для статистики -->
                         <button
                             class="btn btn-success mt-2"

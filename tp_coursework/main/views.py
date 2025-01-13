@@ -5,6 +5,8 @@ from .models import Event, Participant
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, F
+import json
+import csv
 
 from django.shortcuts import redirect, get_object_or_404
 from django.http import JsonResponse
@@ -145,3 +147,46 @@ def get_event_statistics(request, event_id):
         })
     except Event.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
+
+def export_participants_json(request, event_id):
+    event = get_object_or_404(Event, pk=event_id)
+    participants = Participant.objects.filter(event=event)
+    data = [
+        {
+            'full_name': p.full_name,
+            'university': p.university,
+            'faculty': p.faculty,
+            'course': p.course,
+            'group': p.group,
+            'gender': p.gender,
+            'email': p.email,
+            'phone': p.phone,
+            'birth_date': str(p.birth_date),  # Преобразование даты в строку
+        }
+        for p in participants
+    ]
+    return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False, 'indent': 4})  # Добавил ensure_ascii
+
+def export_participants_csv(request, event_id):
+    event = get_object_or_404(Event, pk=event_id)
+    participants = Participant.objects.filter(event=event)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="participants_{event.id}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['ФИО', 'Университет', 'Факультет', 'Курс', 'Группа', 'Пол', 'Email', 'Телефон', 'Дата рождения'])  # Заголовки
+
+    for participant in participants:
+        writer.writerow([
+            participant.full_name,
+            participant.university,
+            participant.faculty,
+            participant.course,
+            participant.group,
+            participant.gender,
+            participant.email,
+            participant.phone,
+            participant.birth_date,
+        ])
+    return response
