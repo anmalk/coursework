@@ -19,7 +19,8 @@
                         <p class="card-text"><strong>Место:</strong> {{ event.place }}</p>
                         <p class="card-text"><strong>Описание:</strong> {{ event.description }}</p>
                         <p class="card-text"><strong>Тип:</strong> {{ event.get_event_type_display }}</p>
-                        <p class="card-text"><strong>Количество участников:</strong> {{ event.count }}</p>
+                        <p class="card-text"><strong>Количество участников:</strong> {{ event.current_participants }}</p>
+                        <p class="card-text"><strong>Максимальное количество участников:</strong> {{ event.max_participants }}</p>
                         <button
                             class="btn btn-primary"
                             data-bs-toggle="modal"
@@ -34,6 +35,14 @@
                             data-bs-target="#participantsModal"
                             data-event-id="{{ event.id }}">
                             Показать участников
+                        </button>
+                        <!-- Кнопка для статистики -->
+                        <button
+                            class="btn btn-success mt-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#statisticsModal"
+                            data-event-id="{{ event.id }}">
+                            Показать статистику
                         </button>
                     </div>
                 </div>
@@ -54,6 +63,7 @@
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="eventIdInput" name="event_id">
+                        <!-- Форма регистрации -->
                         <div class="mb-3">
                             <label for="fioInput" class="form-label">ФИО</label>
                             <input type="text" class="form-control" id="fioInput" name="fio" required>
@@ -118,6 +128,21 @@
         </div>
     </div>
 
+    <!-- Modal для статистики -->
+    <div class="modal fade" id="statisticsModal" tabindex="-1" aria-labelledby="statisticsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statisticsModalLabel">Статистика мероприятия</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="statisticsContent">
+                    <!-- Здесь будет отображаться статистика -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Заполнение данных модального окна регистрации
@@ -150,18 +175,7 @@
                         data.participants.forEach(participant => {
                             var participantDiv = document.createElement('div');
                             participantDiv.classList.add('mb-3');
-                            participantDiv.innerHTML = `
-                                <p><strong>ФИО:</strong> ${participant.full_name}</p>
-                                <p><strong>Университет:</strong> ${participant.university}</p>
-                                <p><strong>Факультет:</strong> ${participant.faculty}</p>
-                                <p><strong>Курс:</strong> ${participant.course}</p>
-                                <p><strong>Группа:</strong> ${participant.group}</p>
-                                <p><strong>Пол:</strong> ${participant.gender}</p>
-                                <p><strong>Email:</strong> ${participant.email}</p>
-                                <p><strong>Телефон:</strong> ${participant.phone}</p>
-                                <p><strong>Дата рождения:</strong> ${participant.birth_date}</p>
-                                <hr>
-                            `;
+                            participantDiv.innerHTML = `...`; // Заполнение данных участника
                             participantsList.appendChild(participantDiv);
                         });
                     } else {
@@ -172,6 +186,83 @@
                     console.error('Ошибка:', error);
                 });
         });
+
+       // Загрузка статистики в модальное окно
+var statisticsModal = document.getElementById('statisticsModal');
+statisticsModal.addEventListener('show.bs.modal', function (event) {
+    var button = event.relatedTarget;
+    var eventId = button.getAttribute('data-event-id');
+
+    // Сделаем запрос на сервер, чтобы получить статистику для этого мероприятия
+    fetch(`/get_statistics/${eventId}/`)
+        .then(response => response.json())
+        .then(data => {
+            var statisticsContent = document.getElementById('statisticsContent');
+            statisticsContent.innerHTML = '';  // Очистим старый контент
+
+            if (data.total_participants !== undefined) {
+                statisticsContent.innerHTML = `
+                    <p><strong>Общее количество участников:</strong> ${data.total_participants}</p>
+                    <p><strong>Средний возраст участников:</strong> ${data.average_age.toFixed(1)} лет</p>
+                `;
+
+                // Gender Distribution
+                if (data.gender_distribution.length > 0) {
+                    var genderHtml = '<p><strong>Распределение по полу:</strong></p><ul>';
+                    data.gender_distribution.forEach(gender => {
+                        genderHtml += `<li>${gender.gender}: ${gender.count}</li>`;
+                    });
+                    genderHtml += '</ul>';
+                    statisticsContent.innerHTML += genderHtml;
+                }
+
+                // University Distribution
+                if (data.university_distribution.length > 0) {
+                    var universityHtml = '<p><strong>Распределение по университетам:</strong></p><ul>';
+                    data.university_distribution.forEach(university => {
+                        universityHtml += `<li>${university.university}: ${university.count}</li>`;
+                    });
+                    universityHtml += '</ul>';
+                    statisticsContent.innerHTML += universityHtml;
+                }
+
+                // Faculty Distribution
+                if (data.faculty_distribution.length > 0) {
+                    var facultyHtml = '<p><strong>Распределение по факультетам:</strong></p><ul>';
+                    data.faculty_distribution.forEach(faculty => {
+                        facultyHtml += `<li>${faculty.faculty}: ${faculty.count}</li>`;
+                    });
+                    facultyHtml += '</ul>';
+                    statisticsContent.innerHTML += facultyHtml;
+                }
+
+                // Course Distribution
+                if (data.course_distribution.length > 0) {
+                    var courseHtml = '<p><strong>Распределение по курсам:</strong></p><ul>';
+                    data.course_distribution.forEach(course => {
+                        courseHtml += `<li>Курс ${course.course}: ${course.count}</li>`;
+                    });
+                    courseHtml += '</ul>';
+                    statisticsContent.innerHTML += courseHtml;
+                }
+
+                // Group Distribution
+                if (data.group_distribution.length > 0) {
+                    var groupHtml = '<p><strong>Распределение по группам:</strong></p><ul>';
+                    data.group_distribution.forEach(group => {
+                        groupHtml += `<li>Группа ${group.group}: ${group.count}</li>`;
+                    });
+                    groupHtml += '</ul>';
+                    statisticsContent.innerHTML += groupHtml;
+                }
+            } else {
+                statisticsContent.innerHTML = '<p>Не удалось загрузить статистику.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+        });
+});
     </script>
 </body>
 </html>

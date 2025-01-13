@@ -6,5 +6,6 @@ urlpatterns = [
     path('about-us', views.about),
     path('register/', views.register_participant, name='register_participant'),
     path('get_participants/<int:event_id>/', views.get_participants, name='get_participants'),
+    path('get_statistics/<int:event_id>/', views.event_statistics, name='get_statistics'),
 
 ]

@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from .models import Event, Participant
 from django.shortcuts import redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Count, F
 
 from django.shortcuts import redirect, get_object_or_404
 from django.http import JsonResponse
@@ -88,3 +89,59 @@ def events_list(request):
     return render(request, 'main/events.html', {'events': events})
 
 
+def event_statistics(request, event_id):
+    # Get the event by ID or return a 404 if it doesn't exist
+    event = get_object_or_404(Event, id=event_id)
+
+    # Total number of participants
+    total_participants = Participant.objects.filter(event=event).count()
+
+    # Gender distribution
+    gender_distribution = Participant.objects.filter(event=event).values('gender').annotate(count=Count('gender'))
+
+    # Average age of participants
+    participants = Participant.objects.filter(event=event)
+    total_age = sum((2025 - int(participant.birth_date.year)) for participant in participants)
+    average_age = total_age / len(participants) if participants else 0
+
+    # Distribution by university
+    university_distribution = Participant.objects.filter(event=event).values('university').annotate(count=Count('university'))
+
+    # Distribution by faculty
+    faculty_distribution = Participant.objects.filter(event=event).values('faculty').annotate(count=Count('faculty'))
+
+    # Distribution by course
+    course_distribution = Participant.objects.filter(event=event).values('course').annotate(count=Count('course'))
+
+    # Distribution by group
+    group_distribution = Participant.objects.filter(event=event).values('group').annotate(count=Count('group'))
+
+    # Prepare the statistics as a dictionary
+    statistics = {
+        'total_participants': total_participants,
+        'gender_distribution': list(gender_distribution),
+        'average_age': average_age,
+        'university_distribution': list(university_distribution),
+        'faculty_distribution': list(faculty_distribution),
+        'course_distribution': list(course_distribution),
+        'group_distribution': list(group_distribution)
+    }
+
+    # Return the statistics in JSON format
+    return JsonResponse(statistics)
+def get_event_statistics(request, event_id):
+    try:
+        event = Event.objects.get(id=event_id)
+        total_participants = event.current_participants
+        available_places = event.max_participants - total_participants
+        fill_percentage = (total_participants / event.max_participants) * 100 if event.max_participants else 0
+
+        # Returning the statistics as JSON
+        return JsonResponse({
+            'status': 'success',
+            'total_participants': total_participants,
+            'available_places': available_places,
+            'fill_percentage': fill_percentage
+        })
+    except Event.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
