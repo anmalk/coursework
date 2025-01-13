@@ -159,33 +159,46 @@
         });
 
         // Загрузка участников в модальное окно
-        var participantsModal = document.getElementById('participantsModal');
-        participantsModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var eventId = button.getAttribute('data-event-id');
+var participantsModal = document.getElementById('participantsModal');
+participantsModal.addEventListener('show.bs.modal', function (event) {
+    var button = event.relatedTarget;
+    var eventId = button.getAttribute('data-event-id');
 
-            // Сделаем запрос на сервер, чтобы получить участников для этого мероприятия
-            fetch(`/get_participants/${eventId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    var participantsList = document.getElementById('participantsList');
-                    participantsList.innerHTML = '';  // Очистим старый список
+    // Сделаем запрос на сервер, чтобы получить участников для этого мероприятия
+    fetch(`/get_participants/${eventId}/`)
+        .then(response => response.json())
+        .then(data => {
+            var participantsList = document.getElementById('participantsList');
+            participantsList.innerHTML = '';  // Очистим старый список
 
-                    if (data.status === 'success') {
-                        data.participants.forEach(participant => {
-                            var participantDiv = document.createElement('div');
-                            participantDiv.classList.add('mb-3');
-                            participantDiv.innerHTML = `...`; // Заполнение данных участника
-                            participantsList.appendChild(participantDiv);
-                        });
-                    } else {
-                        participantsList.innerHTML = '<p>Нет участников.</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка:', error);
+            if (data.status === 'success' && data.participants.length > 0) {
+                data.participants.forEach(participant => {
+                    var participantDiv = document.createElement('div');
+                    participantDiv.classList.add('mb-3');
+                    participantDiv.innerHTML = `
+                        <p><strong>Имя:</strong> ${participant.full_name}</p>
+                        <p><strong>Email:</strong> ${participant.email}</p>
+                        <p><strong>Университет:</strong> ${participant.university}</p>
+                        <p><strong>Факультет:</strong> ${participant.faculty}</p>
+                        <p><strong>Курс:</strong> ${participant.course}</p>
+                        <p><strong>Группа:</strong> ${participant.group}</p>
+                        <p><strong>Пол:</strong> ${participant.gender}</p>
+                        <p><strong>Телефон:</strong> ${participant.phone}</p>
+                        <p><strong>Дата рождения:</strong> ${participant.birth_date}</p>
+                        <hr>
+
+
+                    `;
+                    participantsList.appendChild(participantDiv);
                 });
+            } else {
+                participantsList.innerHTML = '<p>Нет участников.</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
         });
+});
 
        // Загрузка статистики в модальное окно
 var statisticsModal = document.getElementById('statisticsModal');
