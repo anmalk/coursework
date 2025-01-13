@@ -1,0 +1,20 @@
+# Events
+- model: main.event
+  pk: 1
+  fields:
+    name: "AI Conference 2025"
+    count: 200
+    date: "2025-05-10"
+    place: "Tech Park"
+    description: "A conference about cutting-edge AI technologies."
+    event_type: "conference"
+- model: main.event
+  pk: 2
+  fields:
+    name: "Data Analysis Workshop"
+    count: 30
+    date: "2025-03-15"
+    place: "Data Center"
+    description: "A workshop on advanced data analysis techniques."
+    event_type: "workshop"
+

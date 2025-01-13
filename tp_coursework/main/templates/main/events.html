@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мероприятия</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Список мероприятий</h1>
+        <div class="row">
+            {% for event in events %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ event.name }}</h5>
+                        <p class="card-text"><strong>Дата:</strong> {{ event.date }}</p>
+                        <p class="card-text"><strong>Место:</strong> {{ event.place }}</p>
+                        <p class="card-text"><strong>Описание:</strong> {{ event.description }}</p>
+                        <p class="card-text"><strong>Тип:</strong> {{ event.get_event_type_display }}</p>
+                        <p class="card-text"><strong>Количество участников:</strong> {{ event.count }}</p>
+                        <button
+                            class="btn btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#registrationModal"
+                            data-event-id="{{ event.id }}"
+                            data-event-name="{{ event.name }}">
+                            Записаться
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" action="{% url 'register_participant' %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="registrationModalLabel">Регистрация на мероприятие</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="eventIdInput" name="event_id">
+                        <div class="mb-3">
+                            <label for="fioInput" class="form-label">ФИО</label>
+                            <input type="text" class="form-control" id="fioInput" name="fio" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="universityInput" class="form-label">Место учёбы</label>
+                            <input type="text" class="form-control" id="universityInput" name="university" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="facultyInput" class="form-label">Факультет</label>
+                            <input type="text" class="form-control" id="facultyInput" name="faculty" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseInput" class="form-label">Курс</label>
+                            <input type="number" class="form-control" id="courseInput" name="course" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="groupInput" class="form-label">Группа</label>
+                            <input type="text" class="form-control" id="groupInput" name="group" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="genderInput" class="form-label">Пол</label>
+                            <select class="form-select" id="genderInput" name="gender" required>
+                                <option value="Мужской">Мужской</option>
+                                <option value="Женский">Женский</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="emailInput" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="emailInput" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phoneInput" class="form-label">Телефон</label>
+                            <input type="tel" class="form-control" id="phoneInput" name="phone" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="birthDateInput" class="form-label">Дата рождения</label>
+                            <input type="date" class="form-control" id="birthDateInput" name="birth_date" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        var registrationModal = document.getElementById('registrationModal');
+        registrationModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var eventId = button.getAttribute('data-event-id');
+            var eventName = button.getAttribute('data-event-name');
+            var modalTitle = registrationModal.querySelector('.modal-title');
+            var eventIdInput = registrationModal.querySelector('#eventIdInput');
+
+            modalTitle.textContent = 'Регистрация на мероприятие: ' + eventName;
+            eventIdInput.value = eventId;
+        });
+    </script>
+</body>
+</html>
