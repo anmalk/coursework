@@ -1,0 +1,35 @@
+[
+    {
+        "full_name": "Иванов Иван Иванович",
+        "university": "ВолгГТУ",
+        "faculty": "ФЭВТ",
+        "course": "1",
+        "group": "ИВТ-161",
+        "gender": "Мужской",
+        "email": "ivanov@gmail.com",
+        "phone": "89888999898",
+        "birth_date": "2000-09-01"
+    },
+    {
+        "full_name": "Юрсема Екатерина Александровна",
+        "university": "ВолгГТУ",
+        "faculty": "ФЭВТ",
+        "course": "1",
+        "group": "ИВТ-160",
+        "gender": "Женский",
+        "email": "elesdfgjllkj@sfh.com",
+        "phone": "895849684889",
+        "birth_date": "2001-09-02"
+    },
+    {
+        "full_name": "Люксов Владислав Сергеевич",
+        "university": "ВолгГТУ",
+        "faculty": "ФЭУ",
+        "course": "2",
+        "group": "ИУЭ-160",
+        "gender": "Мужской",
+        "email": "segkjijh@iuhhoi.ru",
+        "phone": "896886887898",
+        "birth_date": "2003-09-03"
+    }
+]

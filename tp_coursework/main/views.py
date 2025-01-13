@@ -1,3 +1,6 @@
+import os
+
+from django.core.serializers.json import DjangoJSONEncoder
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.http import HttpResponse
@@ -7,11 +10,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, F
 import json
 import csv
-
 from django.shortcuts import redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Event, Participant
+from abc import ABC, abstractmethod
+
 
 @csrf_exempt
 def register_participant(request):
@@ -88,6 +92,7 @@ def about(request):
     return render(request, 'main/about.html')
 def events_list(request):
     events = Event.objects.all()
+
     return render(request, 'main/events.html', {'events': events})
 
 
@@ -131,26 +136,13 @@ def event_statistics(request, event_id):
 
     # Return the statistics in JSON format
     return JsonResponse(statistics)
-def get_event_statistics(request, event_id):
-    try:
-        event = Event.objects.get(id=event_id)
-        total_participants = event.current_participants
-        available_places = event.max_participants - total_participants
-        fill_percentage = (total_participants / event.max_participants) * 100 if event.max_participants else 0
-
-        # Returning the statistics as JSON
-        return JsonResponse({
-            'status': 'success',
-            'total_participants': total_participants,
-            'available_places': available_places,
-            'fill_percentage': fill_percentage
-        })
-    except Event.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Event not found'}, status=404)
 
 def export_participants_json(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     participants = Participant.objects.filter(event=event)
+    #Event.objects.update(current_participants=0)
+
+    # Преобразуем данные участников в список словарей
     data = [
         {
             'full_name': p.full_name,
@@ -161,12 +153,25 @@ def export_participants_json(request, event_id):
             'gender': p.gender,
             'email': p.email,
             'phone': p.phone,
-            'birth_date': str(p.birth_date),  # Преобразование даты в строку
+            'birth_date': str(p.birth_date),  # Преобразуем дату в строку
         }
         for p in participants
     ]
-    return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False, 'indent': 4})  # Добавил ensure_ascii
 
+    # Путь к файлу
+    file_path = os.path.join('exported_data', f'participants_{event_id}.json')
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)  # Создаем папку, если её нет
+
+    # Сохраняем JSON-данные в файл
+    with open(file_path, 'w', encoding='utf-8') as json_file:
+        json.dump(data, json_file, ensure_ascii=False, indent=4, cls=DjangoJSONEncoder)
+
+    # Возвращаем успешный ответ
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Данные участников сохранены в файл {file_path}',
+        'file_path': file_path,
+    })
 def export_participants_csv(request, event_id):
     event = get_object_or_404(Event, pk=event_id)
     participants = Participant.objects.filter(event=event)
