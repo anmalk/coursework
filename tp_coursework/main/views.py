@@ -137,61 +137,95 @@ def event_statistics(request, event_id):
     # Return the statistics in JSON format
     return JsonResponse(statistics)
 
-def export_participants_json(request, event_id):
+# Стратегия форматирования даты
+class DateFormatStrategy(ABC):
+    @abstractmethod
+    def format_date(self, date):
+        pass
+
+class IsoFormatStrategy(DateFormatStrategy):
+    def format_date(self, date):
+        return str(date)
+
+class RusFormatStrategy(DateFormatStrategy):
+    def format_date(self, date):
+        return date.strftime("%d.%m.%Y")
+
+# Интерфейс экспортера
+class Exporter(ABC):
+    def __init__(self, date_format_strategy):
+        self.date_format_strategy = date_format_strategy
+
+    @abstractmethod
+    def export(self, participants, file_path):
+        pass
+
+# Конкретные экспортеры
+class JsonExporter(Exporter):
+    def export(self, participants, file_path):
+        data = [
+            {
+                'full_name': p.full_name,
+                'university': p.university,
+                'faculty': p.faculty,
+                'course': p.course,
+                'group': p.group,
+                'gender': p.gender,
+                'email': p.email,
+                'phone': p.phone,
+                'birth_date': self.date_format_strategy.format_date(p.birth_date),
+            }
+            for p in participants
+        ]
+        with open(file_path, 'w', encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False, indent=4, cls=DjangoJSONEncoder)
+
+class CsvExporter(Exporter):
+    def export(self, participants, file_path):
+        with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['ФИО', 'Университет', 'Факультет', 'Курс', 'Группа', 'Пол', 'Email', 'Телефон', 'Дата рождения'])
+            for participant in participants:
+                writer.writerow([
+                    participant.full_name, participant.university, participant.faculty, participant.course,
+                    participant.group, participant.gender, participant.email, participant.phone,
+                    self.date_format_strategy.format_date(participant.birth_date),
+                ])
+
+# Фабрика экспортеров
+def create_exporter(export_format, date_format):
+    date_strategy = IsoFormatStrategy() if date_format == 'iso' else RusFormatStrategy()
+    if export_format == 'json':
+        return JsonExporter(date_strategy)
+    elif export_format == 'csv':
+        return CsvExporter(date_strategy)
+    else:
+        raise ValueError("Неподдерживаемый формат экспорта")
+
+# Представление Django
+def export_participants(request, event_id, export_format):
     event = get_object_or_404(Event, pk=event_id)
     participants = Participant.objects.filter(event=event)
-    #Event.objects.update(current_participants=0)
 
-    # Преобразуем данные участников в список словарей
-    data = [
-        {
-            'full_name': p.full_name,
-            'university': p.university,
-            'faculty': p.faculty,
-            'course': p.course,
-            'group': p.group,
-            'gender': p.gender,
-            'email': p.email,
-            'phone': p.phone,
-            'birth_date': str(p.birth_date),  # Преобразуем дату в строку
-        }
-        for p in participants
-    ]
+    try:
+        exporter = create_exporter(export_format, request.GET.get('date_format', 'iso')) # Получаем формат даты из GET-параметра
+        file_path = os.path.join('exported_data', f'participants_{event_id}.{export_format}')
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        exporter.export(participants, file_path)
 
-    # Путь к файлу
-    file_path = os.path.join('exported_data', f'participants_{event_id}.json')
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)  # Создаем папку, если её нет
+        if export_format == 'csv':
+            with open(file_path, 'rb') as f:
+                response = HttpResponse(f.read(), content_type='text/csv')
+                response['Content-Disposition'] = f'attachment; filename="participants_{event_id}.csv"'
+                return response
+        else:
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Данные экспортированы в {file_path}',
+                'file_path': file_path,
+            })
 
-    # Сохраняем JSON-данные в файл
-    with open(file_path, 'w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, ensure_ascii=False, indent=4, cls=DjangoJSONEncoder)
-
-    # Возвращаем успешный ответ
-    return JsonResponse({
-        'status': 'success',
-        'message': f'Данные участников сохранены в файл {file_path}',
-        'file_path': file_path,
-    })
-def export_participants_csv(request, event_id):
-    event = get_object_or_404(Event, pk=event_id)
-    participants = Participant.objects.filter(event=event)
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="participants_{event.id}.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow(['ФИО', 'Университет', 'Факультет', 'Курс', 'Группа', 'Пол', 'Email', 'Телефон', 'Дата рождения'])  # Заголовки
-
-    for participant in participants:
-        writer.writerow([
-            participant.full_name,
-            participant.university,
-            participant.faculty,
-            participant.course,
-            participant.group,
-            participant.gender,
-            participant.email,
-            participant.phone,
-            participant.birth_date,
-        ])
-    return response
+    except ValueError as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400) # Обработка ошибок
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': 'Произошла ошибка при экспорте'}, status=500)
